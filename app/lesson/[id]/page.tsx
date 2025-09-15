@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { baseUrl } from "@/lib/baseUrl";
 
@@ -20,8 +20,13 @@ export default function LessonPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [slideDirection, setSlideDirection] = useState<'next' | 'prev' | null>(null);
+  const [slideDirection, setSlideDirection] = useState<"next" | "prev" | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  // Swipe handling
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
 
   async function loadLesson() {
     setLoading(true);
@@ -61,48 +66,82 @@ export default function LessonPage() {
     loadLesson();
   }, [id]);
 
+  // Keyboard navigation and reduced-motion
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mq.addEventListener?.("change", onChange);
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft") handlePrev();
+    };
+    window.addEventListener("keydown", onKey);
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      mq.removeEventListener?.("change", onChange);
+    };
+  }, [currentSlide, lesson, isAnimating]);
+
+  function animateThen(callback: () => void, dir: "next" | "prev") {
+    if (isAnimating || reducedMotion) {
+      // Skip animation if reduced-motion
+      callback();
+      return;
+    }
+    setSlideDirection(dir);
+    setIsAnimating(true);
+    setTimeout(() => {
+      callback();
+      setIsAnimating(false);
+      setSlideDirection(null);
+    }, 300);
+  }
+
   function handleNext() {
     if (lesson && currentSlide < lesson.topic.length - 1 && !isAnimating) {
-      setSlideDirection('next');
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentSlide(currentSlide + 1);
-        setIsAnimating(false);
-        setSlideDirection(null);
-      }, 300);
+      animateThen(() => setCurrentSlide((s) => s + 1), "next");
     }
   }
 
   function handlePrev() {
     if (currentSlide > 0 && !isAnimating) {
-      setSlideDirection('prev');
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentSlide(currentSlide - 1);
-        setIsAnimating(false);
-        setSlideDirection(null);
-      }, 300);
+      animateThen(() => setCurrentSlide((s) => s - 1), "prev");
     }
   }
 
   function handleSlideClick(index: number) {
-    if (index !== currentSlide && !isAnimating) {
-      setSlideDirection(index > currentSlide ? 'next' : 'prev');
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentSlide(index);
-        setIsAnimating(false);
-        setSlideDirection(null);
-      }, 300);
-    }
+    if (!lesson || index === currentSlide || isAnimating) return;
+    const dir = index > currentSlide ? "next" : "prev";
+    animateThen(() => setCurrentSlide(index), dir);
+  }
+
+  // Touch swipe
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.changedTouches[0].clientX;
+    touchEndX.current = null;
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    touchEndX.current = e.changedTouches[0].clientX;
+  }
+  function onTouchEnd() {
+    if (touchStartX.current == null || touchEndX.current == null) return;
+    const delta = touchEndX.current - touchStartX.current;
+    const threshold = 50; // px
+    if (delta < -threshold) handleNext();
+    if (delta > threshold) handlePrev();
+    touchStartX.current = null;
+    touchEndX.current = null;
   }
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-50 to-teal-100 flex items-center justify-center px-4">
-        <div className="text-center animate-bounce">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mx-auto mb-4 animate-pulse"></div>
-          <p className="text-lg sm:text-xl font-bold text-gray-700" style={{ fontFamily: 'Times New Roman, serif' }}>
+        <div className="text-center">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mx-auto mb-4 animate-pulse" />
+          <p className="text-lg sm:text-xl font-bold text-gray-700" style={{ fontFamily: "Times New Roman, serif" }}>
             Loading your lesson... 📚
           </p>
         </div>
@@ -115,10 +154,10 @@ export default function LessonPage() {
       <div className="min-h-screen bg-gradient-to-br from-red-100 to-pink-100 flex items-center justify-center px-4">
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl text-center max-w-sm sm:max-w-md w-full">
           <div className="text-4xl sm:text-6xl mb-4">😵</div>
-          <h2 className="text-xl sm:text-2xl font-bold text-red-600 mb-2" style={{ fontFamily: 'Times New Roman, serif' }}>
+          <h2 className="text-xl sm:text-2xl font-bold text-red-600 mb-2" style={{ fontFamily: "Times New Roman, serif" }}>
             Oops! Something went wrong
           </h2>
-          <p className="text-gray-600 mb-4 text-sm sm:text-base" style={{ fontFamily: 'Times New Roman, serif' }}>
+          <p className="text-gray-600 mb-4 text-sm sm:text-base" style={{ fontFamily: "Times New Roman, serif" }}>
             {error}
           </p>
           <button
