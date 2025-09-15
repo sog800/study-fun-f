@@ -23,6 +23,7 @@ export default function LessonPage() {
   const [slideDirection, setSlideDirection] = useState<"next" | "prev" | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [showSwipeHint, setShowSwipeHint] = useState(true);
 
   // Swipe handling
   const touchStartX = useRef<number | null>(null);
@@ -65,6 +66,20 @@ export default function LessonPage() {
   useEffect(() => {
     loadLesson();
   }, [id]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(media.matches);
+    const t = setTimeout(() => setShowSwipeHint(false), 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Keyboard navigation (accessible)
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (isAnimating) return;
+    if (e.key === "ArrowRight") handleNext();
+    if (e.key === "ArrowLeft") handlePrev();
+  }
 
   // Keyboard navigation and reduced-motion
   useEffect(() => {
@@ -192,7 +207,11 @@ export default function LessonPage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+      <main
+        className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8"
+        role="main"
+        aria-label="Lesson content"
+      >
         {!loading && !error && lesson && (
           <div className="space-y-4 sm:space-y-8">
             {/* Progress Bar */}
@@ -213,102 +232,168 @@ export default function LessonPage() {
               </div>
             </div>
 
-            {/* Main Slide Content */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden">
-              <div className="relative min-h-[300px] sm:min-h-[400px] lg:h-[500px] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-                <div 
+            {/* Slide */}
+            <div
+              className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden"
+              onKeyDown={onKeyDown}
+              tabIndex={0}
+            >
+              <div
+                className="relative min-h-[320px] sm:min-h-[420px] lg:h-[520px] flex items-center justify-center p-4 sm:p-6 lg:p-8"
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
+                role="region"
+                aria-live="polite"
+                aria-label={`Slide ${currentSlide + 1} of ${lesson.topic.length}`}
+              >
+                {/* Swipe hint on mobile */}
+                {showSwipeHint && (
+                  <div className="absolute top-3 right-3 md:hidden text-xs bg-black/60 text-white px-2 py-1 rounded-md animate-fade-in">
+                    Swipe ⇄
+                  </div>
+                )}
+
+                <div
                   className={`absolute inset-0 p-4 sm:p-6 lg:p-8 flex items-center justify-center transition-all duration-300 ${
-                    slideDirection === 'next' ? 'animate-slide-out-left' :
-                    slideDirection === 'prev' ? 'animate-slide-out-right' :
-                    'animate-slide-in'
+                    reducedMotion
+                      ? ""
+                      : slideDirection === "next"
+                      ? "animate-slide-out-left"
+                      : slideDirection === "prev"
+                      ? "animate-slide-out-right"
+                      : "animate-slide-in"
                   }`}
                 >
-                  <div className="max-w-4xl w-full text-center">
-                    <div className="text-2xl sm:text-3xl lg:text-4xl mb-4 sm:mb-6">
-                      {currentSlide === 0 ? '🌟' : 
-                       currentSlide === lesson.topic.length - 1 ? '🎯' : 
-                       ['💡', '🔍', '🧠', '⭐', '🎨', '🚀'][currentSlide % 6]}
+                  <div className="max-w-3xl w-full">
+                    <div className="text-2xl sm:text-3xl lg:text-4xl mb-4 sm:mb-6 text-center">
+                      {currentSlide === 0
+                        ? "🌟"
+                        : currentSlide === lesson.topic.length - 1
+                        ? "🎯"
+                        : ["💡", "🔍", "🧠", "⭐", "🎨", "🚀"][currentSlide % 6]}
                     </div>
-                    <div 
-                      className="text-gray-800 leading-relaxed text-justify slide-content"
-                      style={{ 
-                        fontFamily: 'Times New Roman, serif', 
-                        fontSize: window.innerWidth < 640 ? '16px' : '18px',
-                        lineHeight: '1.8',
-                        letterSpacing: '0.3px'
-                      }}
+
+                    <div
+                      className="mx-auto text-gray-800 leading-8 sm:leading-8 lg:leading-9 text-justify"
+                      style={{ fontFamily: "Times New Roman, serif" }}
                     >
-                      {lesson.topic[currentSlide]?.split('\n').map((paragraph, index) => (
-                        <p
-                          key={index}
-                          className="mb-3 sm:mb-5 last:mb-0 hover:translate-x-1 transition-transform duration-300"
-                        >
-                          {paragraph}
-                        </p>
-                      ))}
+                      <div className="text-[16px] sm:text-[17px] lg:text-[18px] tracking-[0.3px]">
+                        {lesson.topic[currentSlide]?.split("\n").map((paragraph, index) => (
+                          <p
+                            key={index}
+                            className="mb-3 sm:mb-4 lg:mb-5 last:mb-0 hover:translate-x-[2px] transition-transform duration-300"
+                          >
+                            {paragraph}
+                          </p>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Navigation Controls */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-3 sm:p-4 lg:p-6">
-                <div className="flex justify-between items-center gap-2 sm:gap-4">
-                  {/* Previous Button */}
+              {/* Desktop/tablet controls */}
+              <div className="hidden md:block bg-gradient-to-r from-purple-50 to-blue-50 p-4 lg:p-6">
+                <div className="flex justify-between items-center gap-4">
                   <button
                     onClick={handlePrev}
                     disabled={currentSlide === 0 || isAnimating}
-                    className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 lg:px-6 sm:py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg sm:rounded-xl font-bold transition-all hover:scale-105 disabled:opacity-40 disabled:scale-100 disabled:cursor-not-allowed text-xs sm:text-sm lg:text-base"
-                    style={{ fontFamily: 'Times New Roman, serif' }}
+                    aria-label="Previous slide"
+                    className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl font-semibold transition-all hover:scale-105 disabled:opacity-40 disabled:scale-100"
+                    style={{ fontFamily: "Times New Roman, serif" }}
                   >
-                    <span className="text-sm sm:text-base">⬅️</span>
-                    <span className="hidden sm:inline">Previous</span>
-                    <span className="sm:hidden">Prev</span>
+                    ⬅️ Previous
                   </button>
 
-                  {/* Slide Indicators */}
-                  <div className="flex space-x-1 sm:space-x-2 overflow-x-auto max-w-[150px] sm:max-w-none">
-                    {lesson.topic.map((_, index) => (
+                  <div className="flex gap-2">
+                    {lesson.topic.map((_, i) => (
                       <button
-                        key={index}
-                        onClick={() => handleSlideClick(index)}
-                        className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full transition-all duration-300 hover:scale-125 flex-shrink-0 ${
-                          index === currentSlide 
-                            ? 'bg-gradient-to-r from-purple-500 to-blue-500 scale-125' 
-                            : 'bg-gray-300 hover:bg-gray-400'
+                        key={i}
+                        onClick={() => handleSlideClick(i)}
+                        aria-label={`Go to slide ${i + 1}`}
+                        className={`w-4 h-4 rounded-full transition-all duration-300 hover:scale-125 ${
+                          i === currentSlide
+                            ? "bg-gradient-to-r from-purple-500 to-blue-500 scale-125"
+                            : "bg-gray-300 hover:bg-gray-400"
                         }`}
-                        title={`Go to slide ${index + 1}`}
                       />
                     ))}
                   </div>
 
-                  {/* Next/Quiz Button */}
                   {currentSlide < lesson.topic.length - 1 ? (
                     <button
                       onClick={handleNext}
                       disabled={isAnimating}
-                      className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 lg:px-6 sm:py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg sm:rounded-xl font-bold transition-all hover:scale-105 disabled:opacity-40 text-xs sm:text-sm lg:text-base"
-                      style={{ fontFamily: 'Times New Roman, serif' }}
+                      aria-label="Next slide"
+                      className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-semibold transition-all hover:scale-105 disabled:opacity-40"
+                      style={{ fontFamily: "Times New Roman, serif" }}
                     >
-                      <span className="hidden sm:inline">Next</span>
-                      <span className="sm:hidden">Next</span>
-                      <span className="text-sm sm:text-base">➡️</span>
+                      Next ➡️
                     </button>
                   ) : (
                     <button
                       onClick={() => {
-                        if (lesson.quiz) {
-                          router.push(`/quiz/${lesson.id}`);
-                        } else {
-                          alert("🎊 Congratulations! You've completed this lesson. Quiz coming soon!");
-                        }
+                        if (lesson.quiz) router.push(`/quiz/${lesson.id}`);
+                        else alert("🎊 Great job! Quiz coming soon!");
                       }}
-                      className="flex items-center space-x-1 sm:space-x-2 px-3 py-2 sm:px-4 lg:px-6 sm:py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg sm:rounded-xl font-bold transition-all hover:scale-105 animate-pulse text-xs sm:text-sm lg:text-base"
-                      style={{ fontFamily: 'Times New Roman, serif' }}
+                      aria-label="Start quiz"
+                      className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold transition-all hover:scale-105 animate-pulse"
+                      style={{ fontFamily: "Times New Roman, serif" }}
                     >
-                      <span className="text-sm sm:text-base">🎯</span>
-                      <span className="hidden sm:inline">Start Quiz</span>
-                      <span className="sm:hidden">Quiz</span>
+                      🎯 Start Quiz
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Mobile sticky controls */}
+              <div className="md:hidden sticky bottom-0 bg-white/90 backdrop-blur border-t border-gray-200 p-2">
+                <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
+                  <button
+                    onClick={handlePrev}
+                    disabled={currentSlide === 0 || isAnimating}
+                    aria-label="Previous slide"
+                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-700 text-white rounded-lg font-semibold transition-all active:scale-95 disabled:opacity-40"
+                    style={{ fontFamily: "Times New Roman, serif" }}
+                  >
+                    ⬅️ <span>Prev</span>
+                  </button>
+
+                  <div className="flex gap-1 overflow-x-auto px-1 max-w-[40%]">
+                    {lesson.topic.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSlideClick(i)}
+                        aria-label={`Go to slide ${i + 1}`}
+                        className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                          i === currentSlide ? "bg-blue-500" : "bg-gray-300"
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  {currentSlide < lesson.topic.length - 1 ? (
+                    <button
+                      onClick={handleNext}
+                      disabled={isAnimating}
+                      aria-label="Next slide"
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg font-semibold transition-all active:scale-95 disabled:opacity-40"
+                      style={{ fontFamily: "Times New Roman, serif" }}
+                    >
+                      <span>Next</span> ➡️
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (lesson.quiz) router.push(`/quiz/${lesson.id}`);
+                        else alert("🎊 Great job! Quiz coming soon!");
+                      }}
+                      aria-label="Start quiz"
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg font-semibold transition-all active:scale-95"
+                      style={{ fontFamily: "Times New Roman, serif" }}
+                    >
+                      🎯 <span>Quiz</span>
                     </button>
                   )}
                 </div>
@@ -338,68 +423,25 @@ export default function LessonPage() {
       </main>
 
       <style jsx global>{`
+        .animate-fade-in { animation: fadeIn .6s ease; }
+        @keyframes fadeIn { from {opacity:0; transform: translateY(6px)} to {opacity:1; transform:none} }
+
         @keyframes slide-in {
-          0% {
-            opacity: 0;
-            transform: translateX(60px) rotate(2deg) scale(.92);
-            filter: blur(4px);
-          }
-          45% {
-            transform: translateX(-12px) rotate(-1.5deg) scale(1.02);
-            filter: blur(0);
-          }
-          70% {
-            transform: translateX(6px) rotate(.6deg) scale(1);
-          }
-          100% {
-            opacity: 1;
-            transform: translateX(0) rotate(0) scale(1);
-            filter: blur(0);
-          }
+          0% { opacity: 0; transform: translateX(60px) rotate(1.5deg) scale(.95); filter: blur(3px); }
+          60% { transform: translateX(-10px) rotate(-1deg) scale(1.02); filter: blur(0); }
+          100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
         }
         @keyframes slide-out-left {
-          0% {
-            opacity: 1;
-            transform: translateX(0) rotate(0) scale(1);
-          }
-          40% {
-            transform: translateX(-25px) rotate(-2deg) scale(.97);
-          }
-          100% {
-            opacity: 0;
-            transform: translateX(-120px) rotate(-4deg) scale(.9);
-            filter: blur(3px);
-          }
+          0% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
+          100% { opacity: 0; transform: translateX(-80px) rotate(-3deg) scale(.94); filter: blur(2px); }
         }
         @keyframes slide-out-right {
-          0% {
-            opacity: 1;
-            transform: translateX(0) rotate(0) scale(1);
-          }
-          40% {
-            transform: translateX(25px) rotate(2deg) scale(.97);
-          }
-          100% {
-            opacity: 0;
-            transform: translateX(120px) rotate(4deg) scale(.9);
-            filter: blur(3px);
-          }
+          0% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
+          100% { opacity: 0; transform: translateX(80px) rotate(3deg) scale(.94); filter: blur(2px); }
         }
-        .animate-slide-in {
-          animation: slide-in .6s cubic-bezier(.55,.1,.25,1);
-        }
-        .animate-slide-out-left {
-          animation: slide-out-left .38s cubic-bezier(.55,.1,.25,1);
-        }
-        .animate-slide-out-right {
-          animation: slide-out-right .38s cubic-bezier(.55,.1,.25,1);
-        }
-
-        @keyframes wipe {
-          0% { transform: translateX(-100%); opacity: .9; }
-          70% { opacity:.4; }
-          100% { transform: translateX(100%); opacity: 0; }
-        }
+        .animate-slide-in { animation: slide-in .55s cubic-bezier(.55,.1,.25,1); }
+        .animate-slide-out-left { animation: slide-out-left .35s cubic-bezier(.55,.1,.25,1); }
+        .animate-slide-out-right { animation: slide-out-right .35s cubic-bezier(.55,.1,.25,1); }
       `}</style>
     </div>
   );
