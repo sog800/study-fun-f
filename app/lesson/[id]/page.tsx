@@ -208,30 +208,12 @@ export default function LessonPage() {
       </header>
 
       <main
-        className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8"
+        className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-24 md:pb-8" // add extra bottom padding for sticky controls
         role="main"
         aria-label="Lesson content"
       >
         {!loading && !error && lesson && (
           <div className="space-y-4 sm:space-y-8">
-            {/* Progress Bar */}
-            <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs sm:text-sm font-bold text-gray-600" style={{ fontFamily: 'Times New Roman, serif' }}>
-                  Progress: {currentSlide + 1} of {lesson.topic.length}
-                </span>
-                <span className="text-xl sm:text-2xl">
-                  {currentSlide === lesson.topic.length - 1 ? '🎉' : '🚀'}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
-                <div 
-                  className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 sm:h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${((currentSlide + 1) / lesson.topic.length) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-
             {/* Slide */}
             <div
               className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden"
@@ -239,7 +221,7 @@ export default function LessonPage() {
               tabIndex={0}
             >
               <div
-                className="relative min-h-[320px] sm:min-h-[420px] lg:h-[520px] flex items-center justify-center p-4 sm:p-6 lg:p-8"
+                className="relative min-h-[320px] sm:min-h-[420px] lg:min-h-[520px] max-h-[70vh] flex items-center justify-center p-4 sm:p-6 lg:p-8"
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
@@ -255,15 +237,7 @@ export default function LessonPage() {
                 )}
 
                 <div
-                  className={`absolute inset-0 p-4 sm:p-6 lg:p-8 flex items-center justify-center transition-all duration-300 ${
-                    reducedMotion
-                      ? ""
-                      : slideDirection === "next"
-                      ? "animate-slide-out-left"
-                      : slideDirection === "prev"
-                      ? "animate-slide-out-right"
-                      : "animate-slide-in"
-                  }`}
+                  className={`absolute inset-0 p-4 sm:p-6 lg:p-8 flex items-start justify-center transition-all duration-300 overflow-y-auto overscroll-y-contain pr-2`} // enable vertical scroll
                 >
                   <div className="max-w-3xl w-full">
                     <div className="text-2xl sm:text-3xl lg:text-4xl mb-4 sm:mb-6 text-center">
@@ -287,6 +261,8 @@ export default function LessonPage() {
                             {paragraph}
                           </p>
                         ))}
+                        {/* Add a little bottom padding so last lines aren’t hidden under sticky controls */}
+                        <div className="h-3 md:h-0" />
                       </div>
                     </div>
                   </div>
