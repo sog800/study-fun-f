@@ -29,6 +29,10 @@ export default function TopicsPage() {
   const [createError, setCreateError] = useState("");
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  // Rough safe limit so original + prompts + rewritten text fit in gpt-3.5-turbo (16k ctx).
+  // ~4 chars per token => 15,000 chars ≈ 3,750 tokens (leaves room for instructions and AI output).
+  const TOPIC_CHAR_LIMIT = 15000;
+
   async function loadLessons() {
     setLoading(true);
     setError("");
@@ -52,6 +56,10 @@ export default function TopicsPage() {
     }
     if (!topicText.trim()) {
       setCreateError("Please enter your topic content");
+      return;
+    }
+    if (topicText.length > TOPIC_CHAR_LIMIT) {
+      setCreateError(`Content exceeds limit of ${TOPIC_CHAR_LIMIT.toLocaleString()} characters.`);
       return;
     }
     setCreating(true);
@@ -144,17 +152,29 @@ export default function TopicsPage() {
           />
           <textarea
             value={topicText}
-            onChange={(e) => setTopicText(e.target.value)}
-            className="w-full mb-4 px-4 py-3 rounded-lg border-2 border-purple-200 focus:border-purple-500 outline-none text-base font-normal transition min-h-[100px] resize-vertical"
-            placeholder="Type your topic content here..."
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v.length <= TOPIC_CHAR_LIMIT) setTopicText(v);
+            }}
+            className="w-full mb-2 px-4 py-3 rounded-lg border-2 border-purple-200 focus:border-purple-500 outline-none text-base font-normal transition min-h-[100px] resize-vertical"
+            placeholder="Type or paste your topic content here..."
             disabled={creating}
-            maxLength={2000}
+            maxLength={TOPIC_CHAR_LIMIT}
             required
           />
+          <div className="w-full mb-4 text-xs flex justify-between text-gray-500">
+            <span>
+              {topicText.length.toLocaleString()} / {TOPIC_CHAR_LIMIT.toLocaleString()} chars
+              {"  "}(~{Math.ceil(topicText.length / 4).toLocaleString()} tokens est.)
+            </span>
+            {topicText.length >= TOPIC_CHAR_LIMIT && (
+              <span className="text-red-500 font-semibold">Limit reached</span>
+            )}
+          </div>
           <button
             type="submit"
-            disabled={creating}
-            className="w-full py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold text-lg shadow hover:scale-105 transition-transform"
+            disabled={creating || topicText.length === 0 || topicText.length > TOPIC_CHAR_LIMIT}
+            className="w-full py-3 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold text-lg shadow disabled:opacity-60 disabled:cursor-not-allowed hover:scale-105 transition-transform"
           >
             {creating ? "Adding..." : "Add Topic"}
           </button>

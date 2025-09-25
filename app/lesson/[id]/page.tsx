@@ -24,6 +24,7 @@ export default function LessonPage() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null); // NEW
 
   // Swipe handling
   const touchStartX = useRef<number | null>(null);
@@ -151,6 +152,14 @@ export default function LessonPage() {
     touchEndX.current = null;
   }
 
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' });
+    }
+    // Optionally also ensure the whole window is at top (uncomment if needed):
+    // window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [currentSlide]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-50 to-teal-100 flex items-center justify-center px-4">
@@ -237,7 +246,8 @@ export default function LessonPage() {
                 )}
 
                 <div
-                  className={`absolute inset-0 p-4 sm:p-6 lg:p-8 flex items-start justify-center transition-all duration-300 overflow-y-auto overscroll-y-contain pr-2`} // enable vertical scroll
+                  ref={scrollContainerRef} // NEW
+                  className={`absolute inset-0 p-4 sm:p-6 lg:p-8 flex items-start justify-center transition-all duration-300 overflow-y-auto overscroll-y-contain pr-2`}
                 >
                   <div className="max-w-3xl w-full">
                     <div className="text-2xl sm:text-3xl lg:text-4xl mb-4 sm:mb-6 text-center">
